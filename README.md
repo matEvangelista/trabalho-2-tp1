@@ -12,3 +12,6 @@ Cada livro tem seu código de 6 dígitos, nome do autor, título e data de publi
 
 ## Listagem de livros
 Assim como occorre com os usuários, são impressos os dados dos livros. Caso o livro esteja emprestado, será impresso o nome de quem o pegou.
+
+## Data e entrega de livros
+Para fazer a devolução de um livro, é necessário mudar a data do seu computador para uma do futuro (ideia do professor). A data não pode ser maior do que a atual (ou seja, a do futuro) e menor do que a data do empréstimo.
