@@ -206,7 +206,7 @@ void leNome(char nome[], bool usuario)
             printf("usuario");
         else
             printf("autor");
-        printf(" entre 4 e 30 caracteres): ");
+        printf(" (entre 4 e 30 caracteres): ");
         char input[1000];
         gets(input);
         if (apenasAlfa(input) && strlen(input) <= 30 && strlen(input) >= 4)
