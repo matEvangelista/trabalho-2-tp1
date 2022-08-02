@@ -182,34 +182,6 @@ int diferenca(Data dt_ini, Data dt_fim)
     return dias;
 }
 
-// recebe input ate usuario digitar data correta
-Data leDataEntrega()
-{
-    long input;
-    int diaEntrega, mesEntrega, anoEntrega;
-    Data d;
-    while (true)
-    {
-        printf("Digite a data de entrega no fomato DDMMAAAA: ");
-        scanf("%ld", &input);
-        if (input > 99999999 || input < 1000000)
-            printf("Digite no formato DDMMAAAA\n");
-        else
-        {
-            anoEntrega = input % 10000;
-            mesEntrega = ((int)input / 10000) % 100;
-            diaEntrega = (int)input / 1000000;
-            d.ano = anoEntrega;
-            d.mes = mesEntrega;
-            d.dia = diaEntrega;
-            if (eh_data_valida(d) && (maior(d, data_atual()) || igual(d, data_atual())))
-                break;
-            puts("Data invalida. Tente novamente");
-        }
-    }
-    return d;
-}
-
 // "retorna" uma string com caixa alta
 void caixaAlta(char string[])
 {
@@ -225,12 +197,17 @@ bool apenasAlfa(char string[])
     return true;
 }
 
-void leNome(char nome[])
+void leNome(char nome[], bool usuario)
 {
     while (true)
     {
-        printf("Digite o nome (entre 4 e 30 caracteres): ");
-        char input[30];
+        printf("Digite o nome do ");
+        if (usuario)
+            printf("usuario");
+        else
+            printf("autor");
+        printf(" entre 4 e 30 caracteres): ");
+        char input[1000];
         gets(input);
         if (apenasAlfa(input) && strlen(input) <= 30 && strlen(input) >= 4)
         {
@@ -257,25 +234,19 @@ long long leCpf()
     }
 }
 
-void leTituloOuAutor(char nome[], bool titulo)
+void leTitulo(char nome[])
 {
     while (true)
     {
-        char input[30];
-        if (titulo)
+        char input[1000];
             printf("Digite o nome do livro: ");
-        else
-            printf("Digite o nome do autor: ");
         gets(input);
         if (strlen(input) >= 4 && strlen(input) <= 30)
         {
             strcpy(nome, input);
             break;
         }
-        if (titulo)
-            puts("O titulo do livro precisa ter, pelo menos, 4 letras e, no maximo, 30.");
-        else
-            puts("O nome do autor precisa ter, pelo menos, 4 letras e, no maximo, 30.");
+        puts("O titulo do livro precisa ter, pelo menos, 4 letras e, no maximo, 30.");
     }
 }
 
@@ -307,9 +278,11 @@ int leAnoLivro()
 
 struct Livro
 {
-    int codigo, anoDePublicacao;
+    int codigo = -1, anoDePublicacao; // útil para a ordenação depois
     char titulo[30], autor[30];
-    bool emprestado;
+    bool emprestado = false; // naturalmente
+    Data emprestimo;
+    Data devolucao;
 };
 
 Livro cadastraLivro(int codigoInput)
@@ -318,10 +291,10 @@ Livro cadastraLivro(int codigoInput)
     char tit[30], aut[30];
     livro.codigo = codigoInput;
     getchar(); // consome enter
-    leTituloOuAutor(tit, true);
+    leTitulo(tit);
     caixaAlta(tit);
     strcpy(livro.titulo, tit);
-    leTituloOuAutor(aut, false);
+    leNome(aut, false);
     caixaAlta(aut);
     strcpy(livro.autor, aut);
     livro.anoDePublicacao = leAnoLivro();
@@ -334,8 +307,8 @@ Livro cadastraLivro(int codigoInput)
 struct Usuario
 {
     char nome[30];
-    long long cpf;
-    Livro livro; // ler explicação disto abaixo
+    long long cpf = -1; // útil para ordenação depois
+    int codigo = -1; // codigo do livro, útil para busca depois
 };
 
 Usuario cadastraUsuario(long long cpfInput)
@@ -344,14 +317,14 @@ Usuario cadastraUsuario(long long cpfInput)
     char nomeTemp[30], cpfTemp[30];
     usuario.cpf = cpfInput;
     getchar(); // consome enter
-    leNome(nomeTemp);
+    leNome(nomeTemp, true);
     caixaAlta(nomeTemp);
     strcpy(usuario.nome, nomeTemp);
     /*
     todos os usuários são criados com um livro que não existe na biblioteca, cujo código é -1
     se pegar um livro emprestado, o livro.codigo terá o código do livro correspondente.
     */
-    usuario.livro.codigo = -1;
+    usuario.codigo = -1;
     puts("\nUsuario cadastrado com sucesso!");
     return usuario;
 }
@@ -359,12 +332,44 @@ Usuario cadastraUsuario(long long cpfInput)
 // funções serão definidas depois, mas nome são auto-explicativos
 void menuCadastroDeUsuarios(Livro livros[], Usuario usuarios[]), menuCadastroDeLivros(Livro livros[], Usuario usuarios[]),
     menuEmprestimoDevolucao(Livro livros[], Usuario usuarios[]), ordenaLivrosCrescente(Livro livro[]),
-    removeUsuario(Usuario usuarios[], int posicao), removeLivro(Livro livros[], int posicao), listaUsuarios(Usuario usuarios[]),
+    removeUsuario(Usuario usuarios[], int posicao), removeLivro(Livro livros[], int posicao), listaUsuarios(Usuario usuarios[], Livro livros[]),
     listaLivros(Livro livros[], Usuario usuarios[]), fazEmprestimo(Livro livros[], Usuario usuarios[], int codigo, long long cpfInput),
     fazDevolucao(Livro livros[], Usuario usuarios[], long long cpfInput), ordenaUsuariosCrescente(Usuario usuarios[]),
     listaEmprestimos(Livro livros[], Usuario usuarios[]);
 int encontraUltimoLivro(Livro livros[]), encontraUltimoUsuario(Usuario usuarios[]), encontraLivro(Livro livros[], int codigoDigitado),
     encontraUsuario(Usuario usuarios[], long long cpfBuscado);
+
+// recebe input ate usuario digitar data correta
+Data leDataEntrega(Livro livros[], Usuario usuarios[], long long cpfUsuario)
+{
+    long input;
+    int diaEntrega, mesEntrega, anoEntrega;
+    int posicao = encontraUsuario(usuarios, cpfUsuario);
+    Data d;
+    Usuario usuario = usuarios[posicao];
+    while (true)
+    {
+        printf("Digite a data de entrega no fomato DDMMAAAA: ");
+        scanf("%ld", &input);
+        if (input > 99999999 || input < 1000000)
+            printf("Digite no formato DDMMAAAA\n");
+        else
+        {
+            anoEntrega = input % 10000;
+            mesEntrega = ((int)input / 10000) % 100;
+            diaEntrega = (int)input / 1000000;
+            d.ano = anoEntrega;
+            d.mes = mesEntrega;
+            d.dia = diaEntrega;
+            if (eh_data_valida(d) && (maior(d, livros[encontraLivro(livros, usuario.codigo)].emprestimo) ||
+            igual(d, livros[encontraLivro(livros, usuario.codigo)].emprestimo)) &&
+            (menor(d, data_atual()) || igual(d, data_atual()))) // válido e maior ou igual à data de retirada e menor ou igual à data atual
+                break;
+            puts("Data invalida. Tente novamente");
+        }
+    }
+    return d;
+}
 
 void menuPrincipal(Livro livros[], Usuario usuarios[])
 {
@@ -424,7 +429,7 @@ void menuCadastroDeUsuarios(Livro livros[], Usuario usuarios[])
         menuCadastroDeUsuarios(livros, usuarios);
         break;
     case 3:
-        listaUsuarios(usuarios);
+        listaUsuarios(usuarios, livros);
         menuCadastroDeUsuarios(livros, usuarios);
         break;
     case 4:
@@ -513,18 +518,6 @@ void menuEmprestimoDevolucao(Livro livros[], Usuario usuarios[])
     }
 }
 
-void criaUsuarioPadrao(Usuario usuarios[])
-{
-    for (int i = 0; i < 100; i++)
-        usuarios[i].cpf = -1; // será útil para ordenar depois
-}
-
-void criaLivroPadrao(Livro livros[])
-{
-    for (int i = 0; i < 100; i++)
-        livros[i].codigo = -1; // útil para ordenar depois
-}
-
 int encontraUltimoLivro(Livro livros[])
 {
     for (int i = 0; i < 100; i++)
@@ -573,8 +566,8 @@ void removeLivro(Livro livros[], int posicao)
 
 void listaLivros(Livro livros[], Usuario usuarios[])
 {
-    Data dataEntrega = incrementa(data_atual(), 7);
     ordenaLivrosCrescente(livros);
+    Data empresimoLivro, devolucaoLivro;
     puts("----------------------------------------------------------------------");
     puts("Codigo Titulo                        Autor                         Ano");
     puts("----------------------------------------------------------------------");
@@ -590,11 +583,13 @@ void listaLivros(Livro livros[], Usuario usuarios[])
         printf("%d\n", livros[i].anoDePublicacao);
         for (int j = 0; j < encontraUltimoUsuario(usuarios); j++)
         {
-            if (usuarios[j].livro.codigo == livros[i].codigo)
+            if (usuarios[j].codigo == livros[i].codigo)
             {
+                empresimoLivro = livros[i].emprestimo;
+                devolucaoLivro = livros[i].devolucao;
                 printf("      ");
-                printf("Emprestimo: %d/%d/%d a ", data_atual().dia, data_atual().mes, data_atual().ano);
-                printf("%d/%d/%d\n", dataEntrega.dia, dataEntrega.mes, dataEntrega.ano);
+                printf("Emprestimo: %d/%d/%d a ", empresimoLivro.dia, empresimoLivro.mes, empresimoLivro.ano);
+                printf("%d/%d/%d\n", devolucaoLivro.dia, devolucaoLivro.mes, devolucaoLivro.ano);
                 printf("      ");
                 printf("CPF: %lld\n", usuarios[j].cpf);
                 printf("      ");
@@ -639,7 +634,7 @@ void removeUsuario(Usuario usuarios[], int posicao)
 {
     if (posicao == -1)
         puts("Nao ha este usuario no sistema. Tente Outro");
-    else if (usuarios[posicao].livro.codigo != -1)
+    else if (usuarios[posicao].codigo != -1)
         puts("Nao eh possivel remover este usuario pois ele tem um livro emprestado");
     else
     {
@@ -650,9 +645,9 @@ void removeUsuario(Usuario usuarios[], int posicao)
     }
 }
 
-void listaUsuarios(Usuario usuarios[])
+void listaUsuarios(Usuario usuarios[], Livro livros[])
 {
-    Data data = incrementa(data_atual(), 7);
+    int posicaoLivro;
     ordenaUsuariosCrescente(usuarios);
     puts("--------------------------------------------------");
     puts("CPF         Nome");
@@ -660,28 +655,25 @@ void listaUsuarios(Usuario usuarios[])
     for (int i = 0; i < encontraUltimoUsuario(usuarios); i++)
     {
         printf("%lld %s\n", usuarios[i].cpf, usuarios[i].nome);
-        if (usuarios[i].livro.codigo != -1)
+        if (usuarios[i].codigo != -1)
         {
+            posicaoLivro = encontraLivro(livros, usuarios[i].codigo);
             printf("            ");
-            printf("Emprestimo: %d/%d/%d a ", data_atual().dia, data_atual().mes, data_atual().ano);
-            printf("%d/%d/%d\n", data.dia, data.mes, data.ano);
+            printf("Emprestimo: %d/%d/%d a ", livros[posicaoLivro].emprestimo.dia, livros[posicaoLivro].emprestimo.mes, livros[posicaoLivro].emprestimo.ano);
+            printf("%d/%d/%d\n", livros[posicaoLivro].devolucao.dia, livros[posicaoLivro].devolucao.mes, livros[posicaoLivro].devolucao.ano);
             printf("            ");
-            printf("Titulo: %s\n", usuarios[i].livro.titulo);
+            printf("Titulo: %s\n", livros[posicaoLivro].titulo);
             printf("            ");
-            printf("Autor: %s\n", usuarios[i].livro.autor);
+            printf("Autor: %s\n", livros[posicaoLivro].autor);
         }
     }
     puts("--------------------------------------------------");
 }
 
-void fazEmprestimo(Livro livros[], Usuario usuarios[], int codigo, long long cpfInput)
+void fazEmprestimo(Livro livros[], Usuario usuarios[], int codigoInput, long long cpfInput)
 {
-    int posicaoLivro = encontraLivro(livros, codigo);
+    int posicaoLivro = encontraLivro(livros, codigoInput);
     int posicaoUsuario = encontraUsuario(usuarios, cpfInput);
-    int dia, mes, ano;
-    dia = data_atual().dia;
-    mes = data_atual().mes;
-    ano = data_atual().ano;
     Data dataEntrega = incrementa(data_atual(), 7);
     if (posicaoLivro == -1)
         puts("Livro nao encontrado. Cadastre-o no sistema ou digite o codigo corretamente");
@@ -692,11 +684,15 @@ void fazEmprestimo(Livro livros[], Usuario usuarios[], int codigo, long long cpf
     else
     {
         livros[posicaoLivro].emprestado = true;
-        usuarios[posicaoUsuario].livro = livros[posicaoLivro]; // livro "é" do usuário por um tempo
+        livros[posicaoLivro].emprestimo = data_atual();
+        livros[posicaoLivro].devolucao = dataEntrega;
+        usuarios[posicaoUsuario].codigo = codigoInput;
+        printf("%d\n", livros[posicaoLivro].devolucao.ano);
+        usuarios[posicaoUsuario].codigo = codigoInput;
         puts("\nEmprestimo concedido!");
         printf("Nome: %s\nTitulo: %s\n", usuarios[posicaoUsuario].nome, livros[posicaoLivro].titulo);
-        printf("Data do emprestimo: %d/%d/%d\n", dia, mes, ano);
-        printf("Data da devolucao: %d/%d/%d\n", dataEntrega.dia, dataEntrega.mes, dataEntrega.ano);
+        printf("Data do emprestimo: %d/%d/%d\n", livros[posicaoLivro].emprestimo.dia, livros[posicaoLivro].emprestimo.mes, livros[posicaoLivro].emprestimo.ano);
+        printf("Data da devolucao: %d/%d/%d\n", livros[posicaoLivro].devolucao.dia, livros[posicaoLivro].devolucao.mes, livros[posicaoLivro].devolucao.ano);
     }
 }
 
@@ -705,20 +701,20 @@ void fazDevolucao(Livro livros[], Usuario usuarios[], long long cpfInput)
     int posicaoLivro, posicaoUsuario = encontraUsuario(usuarios, cpfInput);
     if (posicaoUsuario == -1)
         puts("\nErro: usuario nao cadastrado. Tente novamente");
-    else if (usuarios[posicaoUsuario].livro.codigo == -1)
+    else if (usuarios[posicaoUsuario].codigo == -1)
         puts("\nEste usuario nao tem emprestimos. Tente novamente");
     else
     {
         Data data;
-        data = leDataEntrega();
-        posicaoLivro = encontraLivro(livros, usuarios[posicaoUsuario].livro.codigo);
+        data = leDataEntrega(livros, usuarios, cpfInput);
+        posicaoLivro = encontraLivro(livros, usuarios[posicaoUsuario].codigo);
         livros[posicaoLivro].emprestado = false;
-        usuarios[posicaoUsuario].livro.codigo = -1; // muito útil
+        usuarios[posicaoUsuario].codigo = -1; // muito útil
         printf("\nDevolucao realizada com sucesso ");
-        if (diferenca(data_atual(), data) <= 7)
+        if (diferenca(livros[posicaoLivro].devolucao, data) <= 7)
             printf("dentro do prazo!\n");
         else
-            printf("com atraso de %d dia(s)!\n", diferenca(data_atual(), data) - 7);
+            printf("com atraso de %d dia(s)!\n", diferenca(livros[posicaoLivro].devolucao, data_atual()));
 
         /*COLOCAR PRAZO*/
     }
@@ -726,6 +722,7 @@ void fazDevolucao(Livro livros[], Usuario usuarios[], long long cpfInput)
 
 void listaEmprestimos(Livro livros[], Usuario usuarios[])
 {
+    int posicaoLivro;
     ordenaUsuariosCrescente(usuarios);
     puts("--------------------------------------------------------------------------------------------------------------------------");
     printf("CPF         ");
@@ -737,18 +734,22 @@ void listaEmprestimos(Livro livros[], Usuario usuarios[])
     puts("--------------------------------------------------------------------------------------------------------------------------");
     for (int i = 0; i < encontraUltimoUsuario(usuarios); i++)
     {
-        if (usuarios[i].livro.codigo != -1)
+        posicaoLivro = encontraLivro(livros, usuarios[i].codigo);
+        Data emprestimoData, devolucaoData;
+        if (livros[posicaoLivro].emprestado)
         {
+            emprestimoData = livros[posicaoLivro].emprestimo;
+            devolucaoData = livros[posicaoLivro].devolucao;
             printf("%lld", usuarios[i].cpf);
             printf(" %s", usuarios[i].nome);
             for (int j = 0; j < 30 - strlen(usuarios[i].nome); j++)
                 printf(" ");
-            printf("%d", usuarios[i].livro.codigo);
-            printf(" %s", usuarios[i].livro.titulo);
-            for (int j = 0; j < 30 - strlen(usuarios[i].livro.titulo); j++)
+            printf("%d", livros[posicaoLivro].codigo);
+            printf(" %s", livros[posicaoLivro].titulo);
+            for (int j = 0; j < 30 - strlen(livros[posicaoLivro].titulo); j++)
                 printf(" ");
-            printf("%d/%d/%d  ", data_atual().dia, data_atual().mes, data_atual().ano);
-            printf("%d/%d/%d", incrementa(data_atual(), 7).dia, incrementa(data_atual(), 7).mes, incrementa(data_atual(), 7).ano);
+            printf("%d/%d/%d  ", emprestimoData.dia, emprestimoData.mes, emprestimoData.ano);
+            printf("%d/%d/%d", devolucaoData.dia, devolucaoData.mes, devolucaoData.ano);
             printf("\n");
         }
     }
@@ -759,8 +760,6 @@ int main()
 {
     Usuario usuarios[100];
     Livro livros[100];
-    criaUsuarioPadrao(usuarios);
-    criaLivroPadrao(livros);
     menuPrincipal(livros, usuarios);
 
     return 0;
