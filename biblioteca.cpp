@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 #include <ctype.h>
 #include <time.h>
 
@@ -208,9 +208,11 @@ void leNome(char nome[], bool usuario)
             printf("autor");
         printf(" (entre 4 e 30 caracteres): ");
         char input[1000];
-        gets(input);
-        if (apenasAlfa(input) && strlen(input) <= 30 && strlen(input) >= 4)
+        fgets(input,sizeof(input), stdin);
+        input[strlen(input)] = '\0';
+        if (apenasAlfa(input) && strlen(input) <= 31 && strlen(input) >= 5)
         {
+            input[strlen(input) - 1] = '\0'; // trocando \n por \0
             strcpy(nome, input);
             break;
         }
@@ -239,10 +241,12 @@ void leTitulo(char nome[])
     while (true)
     {
         char input[1000];
-        printf("Digite o nome do livro: ");
-        gets(input);
-        if (strlen(input) >= 4 && strlen(input) <= 30)
+        printf("Digite o nome do livro (se o nome do livro tem numeros, escreva-os por extenso): ");
+        fgets(input,sizeof(input), stdin);
+        input[strlen(input)] = '\0';
+        if (apenasAlfa(input) && strlen(input) <= 31 && strlen(input) >= 5)
         {
+            input[strlen(input) - 1] = '\0'; // trocando \n por \0
             strcpy(nome, input);
             break;
         }
